@@ -6,13 +6,11 @@ import matplotlib.pyplot as plt
 import pywt
 from scipy.optimize import minimize
 
+from kardia_singal_functions import generate_ecg_signal, fm_modulate, butter_bandpass, bandpass_filter, lowpass_filter
 
-def bandpass_filter(data, lowcut, highcut, fs, order=4):
-    nyquist = 0.5 * fs
-    low = lowcut / nyquist
-    high = highcut / nyquist
-    b, a = butter(order, [low, high], btype='band')
-    return lfilter(b, a, data)
+
+
+
 
 
 def wavelet_transform(signal, wavelet='db4', level=None):
@@ -53,11 +51,6 @@ def iterative_compressed_sensing(y, wavelet='db4', sparsity_weight=1e-2, max_ite
     return x_recovered, slices
 
 
-def lowpass_filter(data, cutoff, fs, order=4):
-    nyquist = 0.5 * fs
-    low = cutoff / nyquist
-    b, a = butter(order, low, btype='low')
-    return lfilter(b, a, data)
 
 
 def fm_demodulate(signal, fs):
@@ -86,6 +79,8 @@ def superheterodyne_demodulate(signal, fs, carrier_freq, if_freq):
     return demodulated_baseband
 
 def compressive_sensing_reconstruction(y, wavelet='db4', sparsity_weight=1e-3, max_iter=100):
+    #TODO add functionality to downsample this to reduce computational cost
+
     # Get the wavelet transform matrix size
     coeffs = wavelet_transform(y, wavelet)
     coeffs_flat, slices = pywt.coeffs_to_array(coeffs)
@@ -102,24 +97,6 @@ def compressive_sensing_reconstruction(y, wavelet='db4', sparsity_weight=1e-3, m
     x_recovered = result.x
     coeffs_recovered = pywt.array_to_coeffs(x_recovered, slices, wavelet)
     return coeffs_recovered
-
-def sparse_fm_demodulation(signal, fs, carrier_freq, if_freq):
-    # Step 1: Superheterodyne approach for FM demodulation
-    t = np.arange(len(signal)) / fs
-    local_oscillator = np.cos(2 * np.pi * (carrier_freq - if_freq) * t)
-    mixed_signal = signal * local_oscillator
-    if_bandwidth = 2e3
-    filtered_if_signal = bandpass_filter(mixed_signal, if_freq - if_bandwidth/2, if_freq + if_bandwidth/2, fs)
-    analytic_signal = hilbert(filtered_if_signal)
-    demodulated_signal = np.diff(np.unwrap(np.angle(analytic_signal)))
-
-    # Step 2: Bandpass filter demodulated signal to 0.1–40 Hz
-    baseband_signal = bandpass_filter(demodulated_signal, 0.1, 40, fs)
-
-    # Step 3: Compressed sensing reconstruction
-    recovered_coeffs = compressive_sensing_reconstruction(baseband_signal)
-    sparse_signal = inverse_wavelet_transform(recovered_coeffs)
-    return sparse_signal
 
 def sparse_fm_demodulation(signal, fs, carrier_freq, if_freq, resample_rate=600):
     # Step 1: Superheterodyne approach for FM demodulation

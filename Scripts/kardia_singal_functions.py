@@ -9,7 +9,38 @@ import os
 
 from scipy.fft import fft, ifft, fftfreq
 
+# Generate Artificial Heartbeat Signal
+def generate_ecg_signal(duration, heart_rate, fs):
+    """Generates an artificial Lead I ECG signal."""
+    # Basic parameters
+    total_samples = int(fs * duration)
+    t = np.linspace(0, duration, total_samples, endpoint=False)
+    samples_per_beat = int(fs * 60 / heart_rate)
+    
+    # PQRST wave definition (Lead I shape approximation)
+    p_wave = np.exp(-np.power((np.linspace(0, 1, samples_per_beat) - 0.1), 2) / (2 * 0.005**2)) * 0.1  # P-wave
+    q_wave = -np.exp(-np.power((np.linspace(0, 1, samples_per_beat) - 0.2), 2) / (2 * 0.002**2)) * 0.2  # Q-wave
+    r_wave = np.exp(-np.power((np.linspace(0, 1, samples_per_beat) - 0.3), 2) / (2 * 0.004**2)) * 1.5  # R-wave
+    s_wave = -np.exp(-np.power((np.linspace(0, 1, samples_per_beat) - 0.35), 2) / (2 * 0.003**2)) * 0.5  # S-wave
+    t_wave = np.exp(-np.power((np.linspace(0, 1, samples_per_beat) - 0.5), 2) / (2 * 0.015**2)) * 0.2  # T-wave
 
+    # Assemble the waveform
+    beat = p_wave + q_wave + r_wave + s_wave + t_wave
+    num_beats = total_samples // samples_per_beat + 1
+    ecg_signal = np.tile(beat, num_beats)[:total_samples]
+
+    return ecg_signal, t
+
+# FM Modulation
+def fm_modulate(signal, carrier_freq, fs, calibration):
+    """FM modulates the ECG signal."""
+    # Convert mV to Hz shift
+    deviation = signal * calibration
+    # Generate time vector
+    t = np.arange(len(signal)) / fs
+    # Perform FM modulation
+    modulated_signal = np.sin(2 * np.pi * carrier_freq * t + 2 * np.pi * np.cumsum(deviation) / fs)
+    return modulated_signal
 
 
 
@@ -47,4 +78,11 @@ def bandpass_filter(data, lowcut, highcut, fs, order=4):
 
     sos = butter_bandpass(lowcut, highcut, fs, order)
 
+    return sosfilt(sos, data)
+
+
+def lowpass_filter(data, cutoff, fs, order=4):
+    nyquist = 0.5 * fs
+    low = cutoff / nyquist
+    sos = butter(order, low, btype='low', output='sos')
     return sosfilt(sos, data)

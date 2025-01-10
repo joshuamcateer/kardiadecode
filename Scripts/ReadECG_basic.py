@@ -315,6 +315,7 @@ def process_file(file_path):
     output_dir = os.path.splitext(os.path.basename(file_path))[0]
     print(output_dir)
     plot_ecg(ecg_filtered, regions, fs, output_dir=output_dir)
+    return ecg_filtered
 
 
 

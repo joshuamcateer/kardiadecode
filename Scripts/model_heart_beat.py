@@ -36,16 +36,7 @@ def generate_ecg_signal(duration, heart_rate, fs):
 
     return ecg_signal, t
 
-# FM Modulation
-def fm_modulate(signal, carrier_freq, fs, calibration):
-    """FM modulates the ECG signal."""
-    # Convert mV to Hz shift
-    deviation = signal * calibration
-    # Generate time vector
-    t = np.arange(len(signal)) / fs
-    # Perform FM modulation
-    modulated_signal = np.sin(2 * np.pi * carrier_freq * t + 2 * np.pi * np.cumsum(deviation) / fs)
-    return modulated_signal
+
 
 # Visualization and Playback
 def play_and_visualize(ecg_signal, modulated_signal, t, fs, duration):

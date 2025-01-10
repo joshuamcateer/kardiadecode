@@ -1,13 +1,13 @@
 
-from pydub import AudioSegment
+#from pydub import AudioSegment
 import numpy as np
-import matplotlib.pyplot as plt
-from scipy.signal import butter, lfilter, hilbert, sosfilt
-from scipy.fftpack import fft
-import os
+#import matplotlib.pyplot as plt
+#from scipy.signal import butter, lfilter, hilbert, sosfilt, sosfiltfilt
+#from scipy.fftpack import fft
 
+from filtering_functions import bandpass_filter
 
-from scipy.fft import fft, ifft, fftfreq
+#from scipy.fft import fft, ifft, fftfreq
 
 # Generate Artificial Heartbeat Signal
 def generate_ecg_signal(duration, heart_rate, fs):
@@ -31,58 +31,24 @@ def generate_ecg_signal(duration, heart_rate, fs):
 
     return ecg_signal, t
 
-# FM Modulation
-def fm_modulate(signal, carrier_freq, fs, calibration):
-    """FM modulates the ECG signal."""
-    # Convert mV to Hz shift
-    deviation = signal * calibration
-    # Generate time vector
-    t = np.arange(len(signal)) / fs
-    # Perform FM modulation
-    modulated_signal = np.sin(2 * np.pi * carrier_freq * t + 2 * np.pi * np.cumsum(deviation) / fs)
-    return modulated_signal
 
 
 
+# Stereo Channel Selection
+def select_best_channel(data, fs, CARRIER_FREQ):
+    if data.ndim == 2:  # Stereo signal
+        channel_energies = []
+        for channel in range(data.shape[1]):
+            channel_data = data[:, channel]
+            bandpassed = bandpass_filter(channel_data, CARRIER_FREQ - 1000, CARRIER_FREQ + 1000, fs)
+            snr = np.sum(np.abs(bandpassed)**2) / np.sum(np.abs(channel_data - bandpassed)**2)
+            channel_energies.append(snr)
+        print('Channel energies')
+        print(channel_energies)
+        best_channel = np.argmax(channel_energies)
+        print(f"Selected Channel: {best_channel}")
+        return data[:, best_channel]
+    return data  # Already mono
+# Mains Frequency Filtering
 
 
-# Butterworth Bandpass Filter Design
-def butter_bandpass(lowcut, highcut, fs, order=4):
-    nyquist = 0.5 * fs
-    
-    if not (0 < lowcut < nyquist and 0 < highcut < nyquist):
-        raise ValueError("Cutoff frequencies must be between 0 and the Nyquist frequency.")
-    
-    if highcut - lowcut < 1:  # Adjust threshold as needed for stability
-        print("Warning: Narrow bandwidth detected. Consider lowering filter order.")
-        order = min(order, 2)  # Reduce order for stability
-    
-    low = lowcut / nyquist
-    high = highcut / nyquist
-    sos = butter(order, [low, high], btype='band', output='sos')
-
-    return sos
-
-
-def bandpass_filter(data, lowcut, highcut, fs, order=4):
-    if np.any(np.isnan(data)) or np.any(np.isinf(data)):
-        raise ValueError("Input data contains NaN or Inf values.")
-    max_val = np.max(np.abs(data))
-
-    assert max_val < 1e6, print("Very large values found before filtering")
-    # if max_val > 1e6:  # Threshold for large amplitude signals
-    #     print("Warning: Large signal amplitude detected. Normalizing input.")
-    #     data = data / max_val
-    #     b, a = butter_bandpass(lowcut, highcut, fs, order)
-    #     return lfilter(b, a, data)*max_val
-
-    sos = butter_bandpass(lowcut, highcut, fs, order)
-
-    return sosfilt(sos, data)
-
-
-def lowpass_filter(data, cutoff, fs, order=4):
-    nyquist = 0.5 * fs
-    low = cutoff / nyquist
-    sos = butter(order, low, btype='low', output='sos')
-    return sosfilt(sos, data)

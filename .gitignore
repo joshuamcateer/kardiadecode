@@ -1,3 +1,4 @@
 # ignore all . files but include . folders
 .*
 !.*
+.kardiavenv
